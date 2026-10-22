@@ -30,6 +30,19 @@ npm run lint        # oxlint + oxfmt
 `npm run make` produces `out/AwakeBar-darwin-<arch>/AwakeBar.app`. Copy that into
 `/Applications`, open it once, and turn on **Launch at Login** from its menu.
 
+## Releasing
+
+Pushing a `v*` tag builds `arm64` and `x64` zips on GitHub Actions and publishes
+them to a release. The workflow takes the app version from the tag, so there is no
+need to bump `package.json` first:
+
+```sh
+git tag v1.1.0 && git push origin v1.1.0
+```
+
+`workflow_dispatch` runs the same build without publishing anything, if you just
+want to check that CI is green.
+
 The app is unsigned, so the first launch needs a right-click → **Open**, or an
 approval in **System Settings → Privacy & Security**.
 
