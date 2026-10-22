@@ -1,0 +1,89 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  # Lets you exercise the build without cutting a release.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.arch }}
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [arm64, x64]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm run lint
+
+      # Forge takes the version from package.json and puts it in the filename,
+      # so keep it in step with the tag rather than hand-editing before tagging.
+      - name: Take version from the tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: npm version --no-git-tag-version --allow-same-version "${GITHUB_REF_NAME#v}"
+
+      - name: Build
+        run: npm run make -- --arch=${{ matrix.arch }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: awakebar-${{ matrix.arch }}
+          path: out/make/**/*.zip
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          cat > notes.md <<'NOTES'
+          Download the zip for your Mac: `arm64` for Apple silicon, `x64` for Intel.
+
+          AwakeBar is not code signed or notarized, so macOS blocks it on first
+          launch. Unzip it into `/Applications`, then either right-click the app and
+          choose **Open**, or clear the quarantine flag:
+
+          ```sh
+          xattr -dr com.apple.quarantine /Applications/AwakeBar.app
+          ```
+
+          It runs in the menu bar only — there is no Dock icon and no window.
+          NOTES
+
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "AwakeBar $GITHUB_REF_NAME" \
+            --notes-file notes.md \
+            --generate-notes \
+            $(find artifacts -name '*.zip' -print)
