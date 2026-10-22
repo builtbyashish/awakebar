@@ -1,13 +1,16 @@
-import { app, Menu, nativeImage, powerSaveBlocker, Tray } from 'electron';
+import { app, Menu, nativeImage, Tray } from 'electron';
 import path from 'node:path';
 import { loadSettings, type Settings, saveSettings } from './settings';
+import {
+  isHoldingSleepAssertion,
+  releaseSleepAssertion,
+  takeSleepAssertion,
+} from './sleep-assertion';
 
 let tray: Tray | null = null;
-let blockerId: number | null = null;
 let settings: Settings = { keepAwakeOnLaunch: false };
 
-const isAwake = () =>
-  blockerId !== null && powerSaveBlocker.isStarted(blockerId);
+const isAwake = () => isHoldingSleepAssertion();
 
 // Assets live beside the app in dev, and in Contents/Resources once packaged.
 const assetPath = (file: string) =>
@@ -25,13 +28,10 @@ const trayIcon = (file: string) => {
 };
 
 const setAwake = (enabled: boolean) => {
-  if (enabled && blockerId === null) {
-    // 'prevent-app-suspension' stops the system sleeping while still letting
-    // the display turn off. 'prevent-display-sleep' would keep the screen on.
-    blockerId = powerSaveBlocker.start('prevent-app-suspension');
-  } else if (!enabled && blockerId !== null) {
-    powerSaveBlocker.stop(blockerId);
-    blockerId = null;
+  if (enabled) {
+    takeSleepAssertion();
+  } else {
+    releaseSleepAssertion();
   }
 
   refreshTray();

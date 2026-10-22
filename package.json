@@ -33,7 +33,8 @@
     "lint": "oxlint && oxfmt --check",
     "lint:fix": "oxlint --fix && oxfmt --write",
     "typecheck": "tsc --noEmit",
-    "generate-icons": "node scripts/generate-tray-icons.mjs"
+    "generate-icons": "node scripts/generate-tray-icons.mjs",
+    "build:helper": "node scripts/build-sleep-assertion.mjs"
   },
   "devDependencies": {
     "@electron-forge/cli": "^8.0.1",

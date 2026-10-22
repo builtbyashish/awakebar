@@ -3,20 +3,29 @@ import { MakerZIP } from '@electron-forge/maker-zip';
 import { VitePlugin } from '@electron-forge/plugin-vite';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
+import { buildSleepAssertion } from './scripts/build-sleep-assertion.mjs';
 
 const config: ForgeConfig = {
   packagerConfig: {
     name: 'AwakeBar',
     appBundleId: 'com.awakebar.app',
     asar: true,
-    // Tray icons are read from disk at runtime, so keep them out of the asar.
-    extraResource: ['assets'],
+    // Tray icons and the sleep-assertion helper are read from disk at runtime,
+    // so keep them out of the asar.
+    extraResource: ['assets', 'bin'],
     extendInfo: {
       // Menu bar only: no Dock icon and no app switcher entry.
       LSUIElement: true,
     },
   },
   rebuildConfig: {},
+  hooks: {
+    // Compile for the arch being packaged, so an x64 build made on Apple
+    // silicon ships an x64 helper.
+    generateAssets: async (_config, _platform, arch) => {
+      buildSleepAssertion(arch);
+    },
+  },
   makers: [new MakerZIP({}, ['darwin'])],
   plugins: [
     new VitePlugin({

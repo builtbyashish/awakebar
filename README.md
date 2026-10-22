@@ -46,6 +46,30 @@ want to check that CI is green.
 The app is unsigned, so the first launch needs a right-click → **Open**, or an
 approval in **System Settings → Privacy & Security**.
 
+## The sleep assertion
+
+`npm run make` compiles `native/sleep-assertion.c` into `bin/AwakeBar-sleep`, a
+~50 KB binary the app spawns while keep-awake is on.
+
+Electron's `powerSaveBlocker` would do the same job, but IOKit takes the assertion
+name from whoever creates it and Electron hardcodes its own, so `pmset -g
+assertions` reported AwakeBar's assertion as `named: "Electron"`. The name is not
+settable through the Electron API. The helper calls `IOPMAssertionCreateWithName`
+directly, so the assertion is now reported as:
+
+```
+pid 40666(AwakeBar-sleep): NoIdleSleepAssertion named: "AwakeBar"
+```
+
+It takes the same assertion type Electron used, so the behaviour is unchanged:
+system sleep blocked, display sleep allowed. The app holds the helper's stdin
+open and closes it to release; the kernel drops the assertion if either process
+dies, so a stuck assertion is not possible. If the helper cannot run at all, the
+app falls back to `powerSaveBlocker` rather than silently letting the Mac sleep.
+
+Building needs the Xcode Command Line Tools for `clang` (`xcode-select
+--install`). Forge compiles it for whichever architecture it is packaging.
+
 ## Icons
 
 `assets/*Template.png` are generated, not hand-drawn. The shapes are signed distance
